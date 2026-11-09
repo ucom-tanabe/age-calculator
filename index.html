@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>年齢かんたん計算</title>
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#1d2433;--sub:#6b7280;--line:#dcd8cf;--accent:#c2410c;--accent-bg:#fff1e8;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161c;--card:#1d2029;--ink:#eceae4;--sub:#9aa1ae;--line:#33384a;--accent:#fb923c;--accent-bg:#2b2018}}
+:root[data-theme="dark"]{--bg:#14161c;--card:#1d2029;--ink:#eceae4;--sub:#9aa1ae;--line:#33384a;--accent:#fb923c;--accent-bg:#2b2018}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Yu Gothic",Meiryo,system-ui,sans-serif;line-height:1.6}
+main{max-width:480px;margin:0 auto;padding:28px 18px 48px}
+h1{font-size:1.4rem;margin:0 0 4px}
+.lead{color:var(--sub);font-size:.9rem;margin:0 0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+.tabs{display:flex;gap:6px;background:var(--bg);padding:4px;border-radius:12px;margin-bottom:16px}
+.tabs button{flex:1;border:0;background:none;color:var(--sub);font:inherit;padding:9px;border-radius:9px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--card);color:var(--ink);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+label{display:block;font-size:.8rem;color:var(--sub);margin:0 0 4px}
+.row{display:flex;gap:10px;margin-bottom:14px}
+.row>div{flex:1;min-width:0}
+input,select{width:100%;font:inherit;font-size:1rem;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+input:focus,select:focus,.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.opt{font-size:.8rem;color:var(--sub);margin:2px 0 8px}
+#result{margin-top:16px;background:var(--accent-bg);border-radius:16px;padding:20px;text-align:center}
+#age{font-size:2.8rem;font-weight:800;color:var(--accent);line-height:1.2}
+#age small{font-size:1.1rem;font-weight:600}
+#detail{color:var(--sub);font-size:.88rem;margin-top:8px}
+.err{color:#dc2626}
+dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:14px 0 0;font-size:.9rem;text-align:left}
+dt{color:var(--sub)}dd{margin:0}
+.note{font-size:.76rem;color:var(--sub);margin-top:14px}
+</style>
+</head>
+<body>
+<main>
+<h1>年齢かんたん計算</h1>
+<p class="lead">西暦または和暦の生まれ年を入れるだけで、今日時点の年齢がわかります。</p>
+<div class="card">
+  <div class="tabs" role="tablist">
+    <button role="tab" id="t-w" aria-selected="true">西暦</button>
+    <button role="tab" id="t-j" aria-selected="false">和暦</button>
+  </div>
+  <div id="p-w" class="row"><div><label for="wy">生まれた年（西暦）</label><input id="wy" type="number" inputmode="numeric" placeholder="例：1990"></div></div>
+  <div id="p-j" class="row" hidden>
+    <div><label for="era">元号</label><select id="era"><option>令和</option><option>平成</option><option selected>昭和</option><option>大正</option><option>明治</option></select></div>
+    <div><label for="jy">年（元年は1）</label><input id="jy" type="number" inputmode="numeric" placeholder="例：40"></div>
+  </div>
+  <p class="opt">誕生日がわかると、より正確になります（任意）</p>
+  <div class="row">
+    <div><label for="bm">月</label><select id="bm"><option value="">未入力</option></select></div>
+    <div><label for="bd">日</label><select id="bd"><option value="">未入力</option></select></div>
+  </div>
+  <div id="result" aria-live="polite"><div id="age">—</div><div id="detail">年を入力してください</div></div>
+  <dl id="info"></dl>
+  <p class="note" id="today"></p>
+</div>
+</main>
+<script>
+var ERAS={"令和":[2019,200],"平成":[1989,31],"昭和":[1926,64],"大正":[1912,15],"明治":[1868,45]};
+var $=function(i){return document.getElementById(i)};
+var mode="w",now=new Date(),TY=now.getFullYear(),TM=now.getMonth()+1,TD=now.getDate();
+var i;
+for(i=1;i<=12;i++)$("bm").add(new Option(i+"月",i));
+for(i=1;i<=31;i++)$("bd").add(new Option(i+"日",i));
+$("today").textContent="今日："+TY+"年"+TM+"月"+TD+"日 時点で計算しています。";
+function setMode(m){mode=m;$("t-w").setAttribute("aria-selected",m==="w");$("t-j").setAttribute("aria-selected",m==="j");
+  $("p-w").hidden=m!=="w";$("p-j").hidden=m!=="j";calc()}
+$("t-w").onclick=function(){setMode("w")};$("t-j").onclick=function(){setMode("j")};
+["wy","era","jy","bm","bd"].forEach(function(id){$(id).addEventListener("input",calc)});
+function toWareki(y){
+  var n=["令和","平成","昭和","大正","明治"];
+  for(var k=0;k<n.length;k++){var s=ERAS[n[k]][0];if(y>=s){var d=y-s+1;return n[k]+(d===1?"元":d)+"年"}}
+  return null}
+function ageAt(y,m,d){var a=TY-y;if(TM<m||(TM===m&&TD<d))a--;return a}
+function show(a,d,err){$("age").innerHTML=a;$("detail").textContent=d;$("detail").className=err?"err":"";$("info").innerHTML=""}
+function calc(){
+  var y;
+  if(mode==="w"){y=parseInt($("wy").value,10)}
+  else{var e=$("era").value,n=parseInt($("jy").value,10);
+    if(!n){return show("—","年を入力してください")}
+    if(n<1||n>ERAS[e][1]){return show("—",e+"は1〜"+(e==="令和"?TY-2018:ERAS[e][1])+"年の範囲で入力してください",true)}
+    y=ERAS[e][0]+n-1}
+  if(!y){return show("—","年を入力してください")}
+  if(y>TY||y<1868){return show("—",y>TY?"未来の年は指定できません":"1868年（明治元年）以降を入力してください",true)}
+  var bm=parseInt($("bm").value,10)||0,bd=parseInt($("bd").value,10)||0;
+  if(bm&&bd&&bd>new Date(y,bm,0).getDate()){return show("—",y+"年"+bm+"月は"+new Date(y,bm,0).getDate()+"日までです",true)}
+  var m1=bm||1,d1=bd||1,m2=bm||12,d2=bd||new Date(y,m2,0).getDate();
+  if(y===TY&&(m1>TM||(m1===TM&&d1>TD))){return show("—","未来の日付は指定できません",true)}
+  var hi=ageAt(y,m1,d1),lo=ageAt(y,m2,d2);if(lo<0)lo=0;
+  var txt=hi===lo?hi+"<small>歳</small>":lo+"〜"+hi+"<small>歳</small>";
+  var det=hi===lo?"満年齢（今日時点）":"誕生日によって "+lo+" 歳か "+hi+" 歳です";
+  $("age").innerHTML=txt;$("detail").textContent=det;$("detail").className="";
+  var rows=[["西暦",y+"年"],["和暦",toWareki(y)],["数え年",(TY-y+1)+"歳（"+TY+"年中）"]];
+  var sub=Math.max(0,TY-y);
+  rows.push(["年末時点の満年齢",(TY-y)+"歳"]);
+  $("info").innerHTML=rows.map(function(r){return"<dt>"+r[0]+"</dt><dd>"+r[1]+"</dd>"}).join("");
+}
+calc();
+</script>
+</body>
+</html>
